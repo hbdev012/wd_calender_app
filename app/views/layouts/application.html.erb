@@ -1,0 +1,306 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head id="head1">
+    <title> My Calendar </title>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <%= stylesheet_link_tag 'dailog' %>
+    <%= stylesheet_link_tag 'calendar' %>
+    <%= stylesheet_link_tag 'dp' %>
+    <%= stylesheet_link_tag 'alert' %>
+    <%= stylesheet_link_tag 'main' %>
+    <%= stylesheet_link_tag    "application" %>
+    <%= javascript_include_tag "application" %>
+
+    <%= javascript_include_tag 'jqc/wdCalendar_lang_US' %>
+    <%= javascript_include_tag 'jqc/Common' %>
+    <%= javascript_include_tag 'jqc/datepicker_lang_US' %>
+    <%= javascript_include_tag 'jqc/jquery.datepicker' %>
+    <%= javascript_include_tag 'jqc/jquery.alert' %>
+    <%= javascript_include_tag 'jqc/jquery.ifrmdailog' %>
+    <%= javascript_include_tag 'jqc/jquery.calendar' %>
+
+
+
+</head>
+<body>
+    
+        <%= yield %>
+    
+
+    <script  type="text/javascript" charset="utf-8">
+$(document).ready(function() {     
+   var view="week";          
+
+    var DATA_FEED_URL = "<%= jqcalendars_path %>";
+    var op = {
+        view: view,
+        theme:3,
+        showday: new Date(),
+        EditCmdhandler:Edit,
+        //DeleteCmdhandler:Delete,
+        ViewCmdhandler:View,
+        onWeekOrMonthToDay:wtd,
+        onBeforeRequestData: cal_beforerequest,
+        onAfterRequestData: cal_afterrequest,
+        onRequestDataError: cal_onerror, 
+        autoload:true,
+        method: "GET",
+        url: DATA_FEED_URL,  
+        quickAddUrl: DATA_FEED_URL, 
+        quickUpdateUrl: DATA_FEED_URL,
+        quickDeleteUrl: DATA_FEED_URL + "?&_method=delete"       
+    };
+    var $dv = $("#calhead");
+    var _MH = document.documentElement.clientHeight;
+    var dvH = $dv.height() + 2;
+    op.height = _MH - dvH;
+    op.eventItems =[];
+
+    var p = $("#gridcontainer").bcalendar(op).BcalGetOp();
+    //console.log(p.datestrshow);
+    if (p && p.datestrshow) {
+        $("#txtdatetimeshow").text(p.datestrshow);
+    }
+    $("#caltoolbar").noSelect();
+    
+    $("#hdtxtshow").datepicker({ picker: "#txtdatetimeshow", showtarget: $("#txtdatetimeshow"),
+        onReturn:function(r){                          
+            var p = $("#gridcontainer").gotoDate(r).BcalGetOp();
+            if (p && p.datestrshow) {
+                $("#txtdatetimeshow").text(p.datestrshow);
+            }
+        } 
+    });
+
+    function cal_beforerequest(type){
+        var t="Loading data...";
+        switch(type)
+        {
+            case 1:
+            t="Loading data...";
+            break;
+            case 2:                      
+            case 3:  
+            case 4:    
+            t="The request is being processed ...";                                   
+            break;
+        }
+        $("#errorpannel").hide();
+        $("#loadingpannel").html(t).show();    
+    }
+
+    function cal_afterrequest(type){
+        switch(type)
+        {
+            case 1:
+            $("#loadingpannel").hide();
+            break;
+            case 2:
+            case 3:
+            case 4:
+            $("#loadingpannel").html("Success!");
+            window.setTimeout(function(){ $("#loadingpannel").hide();},2000);
+            break;
+        }              
+        
+    }
+
+    function cal_onerror(type,data){
+        $("#errorpannel").show();
+    }
+
+    function Edit(data){
+
+        if(data){
+            var url = "";
+            if(data[0] == 0) {
+                url = "/jqcalendars/new";
+            } else {
+                url = "/jqcalendars/"+data[0]+"/edit";
+            }
+            OpenModelWindow(url,{ width: 600, height: 400, caption:"Manage The Calendar",onclose:function(){
+               $("#gridcontainer").reload();// FIX - I don't think this is actually being called
+            }});
+        }
+    }
+    function View(data){
+        var str = "";
+        $.each(data, function(i, item){
+            str += "[" + i + "]: " + item + "\n";
+        });
+        alert(str);               
+    }    
+    
+    // No longer using the standard callback
+    function Delete(data,callback) { 
+        $.alerts.okButton="Ok";
+        $.alerts.cancelButton="Cancel";
+        hiConfirm("Are You Sure to Delete this Event", 'Confirm', function(r){ r && quickd_event(data);});
+    }
+
+    // function Update(data, param){
+
+    //     $.post(op.url+'/'+data[0].value,
+    //         { 
+    //           _method:"put",
+    //           CalendarStartTime:data[1].value,
+    //           CalendarEndTime:data[2].value,
+    //           timezone:data[3].value,
+    //         },
+    //         function(data) {
+    //                //$("#gridcontainer").reload(); //FIX - this isn't refreshing the gridcontainer
+    //                // window.location="<%= jqcalendars_path %>"; // FIX - This refreshed the entire DOM
+    //                                 /*if (data) {
+    //                     if (data.IsSuccess == true) {
+    //                         op.isloading = false;
+    //                         op.onAfterRequestData && op.onAfterRequestData(4);
+    //                     }   
+    //                     else {
+    //                         op.onRequestDataError && op.onRequestDataError(4, data);
+    //                         op.isloading = false;                 
+    //                         d = rebyKey(data.id, true);
+    //                         //d[2] = os;
+    //                         //d[3] = od;
+    //                         //Ind(d);
+    //                //         render();
+    //                         d = null;
+    //                         op.onAfterRequestData && op.onAfterRequestData(4);
+    //                     }
+    //                 }*/
+    //     }, "json");
+    // }
+
+    function quickd_event(data) { // FIX (maybe) - Very similar to quickd() in jquery.calendar.js
+      $("#bbit-cs-buddle").css("visibility", "hidden");
+      var calid = $("#bbit-cs-id").val();
+      //var param = [{ "name": "calendarId", value: calid },
+      //            { "name": "type", value: type}];
+      var de = rebyKey(calid, true);
+      op.onBeforeRequestData && op.onBeforeRequestData(3);
+      $.post(op.quickDeleteUrl+'/'+data[0], { _method:"delete" }, function(data) {
+          if (data) {             
+              if (data.IsSuccess) {
+                  de = null;  
+                  op.onAfterRequestData && op.onAfterRequestData(3);
+              }       
+              else {
+                  op.onRequestDataError && op.onRequestDataError(3, data);
+                  Ind(de);
+                  //render(); // FIX - render() is not available here
+                  op.onAfterRequestData && op.onAfterRequestData(3);
+              }       
+          }
+      }, "json");
+      //render(); //FIX - render() is not available here
+    }
+    function rebyKey(key, remove) { // FIX - copied out of jquery.calendar.js - fix duplication later
+        if (op.eventItems && op.eventItems.length > 0) {
+            var sl = op.eventItems.length;
+            var i = -1;     
+            for (var j = 0; j < sl; j++) {
+                if (op.eventItems[j][0] == key) {
+                    i = j;  
+                    break;
+                }   
+            }   
+            if (i >= 0) {
+                var t = op.eventItems[i];
+                if (remove) {
+                    op.eventItems.splice(i, 1);
+                }                   
+                return t;               
+            }   
+        }   
+        return null;            
+    }
+
+    function wtd(p){
+       if (p && p.datestrshow) {
+        $("#txtdatetimeshow").text(p.datestrshow);
+        }
+
+        $("#caltoolbar div.fcurrent").each(function() {
+            $(this).removeClass("fcurrent");
+        })
+        $("#showdaybtn").addClass("fcurrent");
+    }
+
+    //to show day view
+    $("#showdaybtn").click(function(e) {
+        //document.location.href="#day";
+        $("#caltoolbar div.fcurrent").each(function() {
+            $(this).removeClass("fcurrent");
+        })
+        $(this).addClass("fcurrent");
+        var p = $("#gridcontainer").swtichView("day").BcalGetOp();
+        if (p && p.datestrshow) {
+            $("#txtdatetimeshow").text(p.datestrshow);
+        }
+    });
+
+    //to show week view
+    $("#showweekbtn").click(function(e) {
+        //document.location.href="#week";
+        $("#caltoolbar div.fcurrent").each(function() {
+            $(this).removeClass("fcurrent");
+        })
+        $(this).addClass("fcurrent");
+        var p = $("#gridcontainer").swtichView("week").BcalGetOp();
+        if (p && p.datestrshow) {
+            $("#txtdatetimeshow").text(p.datestrshow);
+        }
+
+    });
+
+    //to show month view
+    $("#showmonthbtn").click(function(e) {
+        //document.location.href="#month";
+        $("#caltoolbar div.fcurrent").each(function() {
+            $(this).removeClass("fcurrent");
+        })
+        $(this).addClass("fcurrent");
+        var p = $("#gridcontainer").swtichView("month").BcalGetOp();
+        if (p && p.datestrshow) {
+            $("#txtdatetimeshow").text(p.datestrshow);
+        }
+    });
+                
+    $("#showreflashbtn").click(function(e){
+        $("#gridcontainer").reload();
+    });
+
+    //Add a new event
+    $("#faddbtn").click(function(e) {
+        var url ="<%= new_jqcalendar_path %>"; // _method=GET
+        OpenModelWindow(url,{ width: 500, height: 400, caption: "Create New Calendar"});
+    });
+    //go to today
+    $("#showtodaybtn").click(function(e) {
+        var p = $("#gridcontainer").gotoDate().BcalGetOp();
+        if (p && p.datestrshow) {
+            $("#txtdatetimeshow").text(p.datestrshow);
+        }
+    });
+    //previous date range
+    $("#sfprevbtn").click(function(e) {
+        var p = $("#gridcontainer").previousRange().BcalGetOp();
+        if (p && p.datestrshow) {
+            $("#txtdatetimeshow").text(p.datestrshow);
+        }
+    });
+    //next date range
+    $("#sfnextbtn").click(function(e) {
+        var p = $("#gridcontainer").nextRange().BcalGetOp();
+        if (p && p.datestrshow) {
+            $("#txtdatetimeshow").text(p.datestrshow);
+        }
+    });
+    console.log(p.datestrshow);
+    if (p && p.datestrshow) {
+        $("#txtdatetimeshow").text(p.datestrshow);
+    }
+});
+    </script>
+
+</body>
+</html>
